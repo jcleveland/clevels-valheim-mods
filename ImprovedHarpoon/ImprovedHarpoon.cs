@@ -16,12 +16,13 @@ namespace ImprovedHarpoon
         const string pluginVersion = "0.1.0";
         public static ManualLogSource logger;
 
-        private readonly Harmony harmony = new Harmony(pluginGUID + "." + pluginName);
+        private readonly Harmony harmony = new Harmony(pluginGUID);
 
         static private ConfigEntry<float> minForce;
         static private ConfigEntry<float> maxForceOnAttacker;
         static private ConfigEntry<float> maxForceOnHarpoon;
         static private ConfigEntry<float> maxMassRatioDiff;
+        static private ConfigEntry<float> maxMass;
         static private ConfigEntry<float> minHealthLimit;
         static private ConfigEntry<float> minDistance;
         static private ConfigEntry<float> maxDistance;
@@ -34,7 +35,6 @@ namespace ImprovedHarpoon
 
         static private ConfigEntry<float> onShipFactor;
         static private ConfigEntry<float> inWaterFactor;
-
 
         void Awake()
         {
@@ -75,7 +75,7 @@ namespace ImprovedHarpoon
             maxDistance = Config.Bind(
                 pluginName,
                 nameof(maxDistance),
-                30f,
+                100f,
                 "Max distance a character will attempt to pull the attacker. Used to smooth out applied force.");
 
             scalingFactorForceOnAttacker = Config.Bind(
@@ -93,7 +93,7 @@ namespace ImprovedHarpoon
             pullStaminaCost = Config.Bind(
                 pluginName,
                 nameof(pullStaminaCost),
-                2f,
+                0*2f,
                 "Stamina cost of blocking.");
 
             forceBaseline = Config.Bind(
@@ -107,6 +107,12 @@ namespace ImprovedHarpoon
                 nameof(maxMassRatioDiff),
                 0.9f,
                 "Max difference in mass calculation for target and source");
+
+            maxMass = Config.Bind(
+                pluginName,
+                nameof(maxMass),
+                50f,
+                "maxMass");
 
             forceMode = Config.Bind(
                 pluginName,
@@ -150,100 +156,240 @@ namespace ImprovedHarpoon
             }
         }
 
+        public static void ApplyForces0(float dt, Character attacker, Character harpooned)
+        {
+            Rigidbody harpooned_component = harpooned.GetComponent<Rigidbody>();
+            Rigidbody attacker_component = attacker.GetComponent<Rigidbody>();
+            float relative_mass_harpooned = Mathf.Clamp(harpooned_component.mass / (attacker_component.mass + harpooned_component.mass), 1f - maxMassRatioDiff.Value, maxMassRatioDiff.Value);
+            float relative_mass_attacker = 1.0f - relative_mass_harpooned;
+
+            Vector3 position_diff = attacker.transform.position - harpooned.transform.position;
+            Vector3 direction = position_diff.normalized;
+
+            // If harpooning a player we ignore their health and consider them equal to the attacker
+            float health_force_multiplier=0f;
+            if (harpooned.IsPlayer())
+            {
+                health_force_multiplier = 0.5f;
+            }
+            else
+            {
+                health_force_multiplier = (harpooned.GetHealthPercentage() - minHealthLimit.Value) / (1.0f - minHealthLimit.Value);
+            }
+
+            ////////////
+            ///
+            Vector3 vector = attacker.transform.position - harpooned.transform.position;
+            Vector3 normalized = vector.normalized;
+            float radius = harpooned.GetRadius();
+            float distance = vector.magnitude;
+            float num = Mathf.Clamp01(Vector3.Dot(normalized, harpooned_component.velocity));
+            float t = Utils.LerpStep(minDistance.Value, maxDistance.Value, distance);
+            float num2 = Mathf.Lerp(minForce.Value, maxForceOnHarpoon.Value, t);
+            float num3 = Mathf.Clamp01(maxMass.Value / harpooned_component.mass);
+            float num4 = num2 * num3;
+
+            if (!attacker.IsAttached())
+            {
+                Vector3 harpoon_force_vector = normalized * num4 * scalingFactorForceOnHarpoon.Value;
+                Vector3 attacker_force_vector = -normalized * num4 * scalingFactorForceOnAttacker.Value;
+
+                harpooned_component.AddForce(harpoon_force_vector, forceMode.Value);
+                attacker_component.AddForce(attacker_force_vector, forceMode.Value);
+                logger.LogDebug("\n"+
+                $"Force on harpoon:  {harpoon_force_vector}  \t  mag: {harpoon_force_vector.magnitude}  \t mass: {harpooned_component.mass} \t rel_mass: {relative_mass_harpooned}\n" +
+                $"Force on attacker: {attacker_force_vector} \t mag: {attacker_force_vector.magnitude} \t mass: {attacker_component.mass}  \t rel_mass: {relative_mass_attacker} \n" +
+                $"Health factor: {health_force_multiplier} \n");
+
+            }
+        }
+
+
+
+        public static void ApplyForces1(float dt, Character attacker, Character harpooned)
+        {
+            Rigidbody harpooned_component = harpooned.GetComponent<Rigidbody>();
+            Rigidbody attacker_component = attacker.GetComponent<Rigidbody>();
+
+            float relative_mass_harpooned = Mathf.Clamp(harpooned_component.mass / (attacker_component.mass + harpooned_component.mass), 1f - maxMassRatioDiff.Value, maxMassRatioDiff.Value);
+            float relative_mass_attacker = 1.0f - relative_mass_harpooned;
+
+            Vector3 position_diff = attacker.transform.position - harpooned.transform.position;
+            Vector3 direction = position_diff.normalized;
+
+            // If harpooning a player we ignore their health and consider them equal to the attacker
+            float health_force_multiplier;
+            if (harpooned.IsPlayer())
+            {
+                health_force_multiplier = 0.5f;
+            }
+            else
+            {
+                health_force_multiplier = (harpooned.GetHealthPercentage() - minHealthLimit.Value) / (1.0f - minHealthLimit.Value);
+            }
+
+            ////////////////////// I'm happy with the math above here for the most part
+
+
+            float force_on_harpoon = Mathf.Lerp(minForce.Value, maxForceOnHarpoon.Value, forceBaseline.Value * (1 - health_force_multiplier) * relative_mass_attacker * scalingFactorForceOnHarpoon.Value);
+            float force_on_attacker = Mathf.Lerp(minForce.Value, maxForceOnAttacker.Value, forceBaseline.Value * (health_force_multiplier) * relative_mass_harpooned * scalingFactorForceOnAttacker.Value);
+
+            Vector3 harpoon_force_vector = direction * force_on_harpoon;
+            Vector3 attacker_force_vector = -direction * force_on_attacker;
+            harpoon_force_vector.y = Mathf.Min(0, harpoon_force_vector.y);
+            attacker_force_vector.y = Mathf.Min(0, attacker_force_vector.y);
+
+
+            
+            ////////////// below here is aquatic based stuff
+            // If target is swimming then allow them to be pulled extra
+            if (harpooned.IsSwiming())
+            {
+                logger.LogDebug($"Applying {nameof(inWaterFactor)}");
+                harpoon_force_vector *= inWaterFactor.Value;
+            }
+
+            if (attacker.GetStandingOnShip() != null)
+            {
+                // If attacker is on a ship allow them to be pulled more
+                logger.LogDebug($"Applying {nameof(onShipFactor)}");
+                attacker_force_vector *= onShipFactor.Value;
+
+                // If attacker and target are on a ship zero out the force vectors
+                // This resembles a patch IronWorks put in to handle buggy behavior
+                if (harpooned.GetStandingOnShip() == attacker.GetStandingOnShip())
+                {
+                    logger.LogDebug($"Applying zero forces - both players on same ship.");
+                    harpoon_force_vector = Vector3.zero;
+                    attacker_force_vector = Vector3.zero;
+                }
+            }
+
+            harpooned_component.AddForce(harpoon_force_vector, (ForceMode)forceMode.Value);
+            attacker_component.AddForce(attacker_force_vector, (ForceMode)forceMode.Value);
+
+            logger.LogDebug($"\n" +
+                $"Force on harpoon:  {harpoon_force_vector}  \t  mag: {harpoon_force_vector.magnitude}  \t mass: {harpooned_component.mass} \t rel_mass: {relative_mass_harpooned}\n" +
+                $"Force on attacker: {attacker_force_vector} \t mag: {attacker_force_vector.magnitude} \t mass: {attacker_component.mass}  \t rel_mass: {relative_mass_attacker} \n" +
+                $"Health factor: {health_force_multiplier} \n");
+        }
+
+
+
+        public static void ApplyForces2(float dt, Character attacker, Character harpooned)
+        {
+            Rigidbody harpooned_component = harpooned.GetComponent<Rigidbody>();
+            Rigidbody attacker_component = attacker.GetComponent<Rigidbody>();
+
+            float relative_mass_harpooned = Mathf.Clamp(harpooned_component.mass / (attacker_component.mass + harpooned_component.mass), 1f - maxMassRatioDiff.Value, maxMassRatioDiff.Value);
+            float relative_mass_attacker = 1.0f - relative_mass_harpooned;
+
+            Vector3 position_diff = attacker.transform.position - harpooned.transform.position;
+            Vector3 direction = position_diff.normalized;
+
+            // If harpooning a player we ignore their health and consider them equal to the attacker
+            float health_force_multiplier;
+            if (harpooned.IsPlayer())
+            {
+                health_force_multiplier = 0.5f;
+            }
+            else
+            {
+                health_force_multiplier = (harpooned.GetHealthPercentage() - minHealthLimit.Value) / (1.0f - minHealthLimit.Value);
+            }
+
+            ////////////////////// I'm happy with the math above here for the most part
+
+
+            float force_on_harpoon = Mathf.Lerp(minForce.Value, maxForceOnHarpoon.Value, forceBaseline.Value * (1 - health_force_multiplier) * relative_mass_attacker * scalingFactorForceOnHarpoon.Value);
+            float force_on_attacker = Mathf.Lerp(minForce.Value, maxForceOnAttacker.Value, forceBaseline.Value * (health_force_multiplier) * relative_mass_harpooned * scalingFactorForceOnAttacker.Value);
+
+            Vector3 harpoon_force_vector = direction * force_on_harpoon;
+            Vector3 attacker_force_vector = -direction * force_on_attacker;
+            harpoon_force_vector.y = Mathf.Min(0, harpoon_force_vector.y);
+            attacker_force_vector.y = Mathf.Min(0, attacker_force_vector.y);
+
+            if (harpooned.IsOnGround())
+            {
+            }
+
+            ////////////// below here is aquatic based stuff
+            // If target is swimming then allow them to be pulled extra
+            if (harpooned.IsSwiming())
+            {
+                logger.LogDebug($"Applying {nameof(inWaterFactor)}");
+                harpoon_force_vector *= inWaterFactor.Value;
+            }
+
+            if (attacker.GetStandingOnShip() != null)
+            {
+                // If attacker is on a ship allow them to be pulled more
+                logger.LogDebug($"Applying {nameof(onShipFactor)}");
+                attacker_force_vector *= onShipFactor.Value;
+
+                // If attacker and target are on a ship zero out the force vectors
+                // This resembles a patch IronWorks put in to handle buggy behavior
+                if (harpooned.GetStandingOnShip() == attacker.GetStandingOnShip())
+                {
+                    logger.LogDebug($"Applying zero forces - both players on same ship.");
+                    harpoon_force_vector = Vector3.zero;
+                    attacker_force_vector = Vector3.zero;
+                }
+            }
+
+            harpooned_component.AddForce(harpoon_force_vector, (ForceMode)forceMode.Value);
+            attacker_component.AddForce(attacker_force_vector, (ForceMode)forceMode.Value);
+
+            logger.LogDebug($"\n" +
+                $"Force on harpoon:  {harpoon_force_vector}  \t  mag: {harpoon_force_vector.magnitude}  \t mass: {harpooned_component.mass} \t rel_mass: {relative_mass_harpooned}\n" +
+                $"Force on attacker: {attacker_force_vector} \t mag: {attacker_force_vector.magnitude} \t mass: {attacker_component.mass}  \t rel_mass: {relative_mass_attacker} \n" +
+                $"Health factor: {health_force_multiplier} \n");
+        }
+
+
+
+        public static void DrainStamina(float dt, SE_Harpooned harpoonEffect)
+        {
+            harpoonEffect.m_drainStaminaTimer += dt;
+            if (harpoonEffect.m_drainStaminaTimer > harpoonEffect.m_staminaDrainInterval)
+            {
+                float stamina_cost = pullStaminaCost.Value * (harpoonEffect.m_drainStaminaTimer / harpoonEffect.m_staminaDrainInterval);
+                harpoonEffect.m_attacker.UseStamina(stamina_cost);
+                harpoonEffect.m_drainStaminaTimer = 0f;
+            }
+        }
+
         [HarmonyPatch(typeof(SE_Harpooned), nameof(SE_Harpooned.UpdateStatusEffect))]
         class SE_Harpooned_UpdateStatusEffect_Patch
         {
             static bool Prefix(float dt, ref SE_Harpooned __instance)
             {
                 Base_StatusEffect_UpdateStatusEffect.UpdateStatusEffect(__instance, dt);
+                Character attacker = __instance.m_attacker;
+                Character harpooned = __instance.m_character;
 
-                if (!__instance.m_attacker || __instance.m_broken)
+                if (!attacker || __instance.m_broken)
                 {
                     return false;
                 }
 
-                Rigidbody harpooned_component = __instance.m_character.GetComponent<Rigidbody>();
-                Rigidbody attacker_component = __instance.m_attacker.GetComponent<Rigidbody>();
-
-                float relative_mass_harpooned = Mathf.Clamp(harpooned_component.mass / (attacker_component.mass + harpooned_component.mass), 1f - maxMassRatioDiff.Value, maxMassRatioDiff.Value);
-                float relative_mass_attacker = 1.0f - relative_mass_harpooned;
-
-                Vector3 position_diff = __instance.m_attacker.transform.position - __instance.m_character.transform.position;
-                Vector3 direction = position_diff.normalized;
-                float distance = position_diff.magnitude;
-
-                // If blocking apply 
-                if (__instance.m_attacker.IsBlocking() && distance > minDistance.Value)
+                float distance = Vector3.Distance(attacker.transform.position, harpooned.transform.position);
+                if (attacker.IsBlocking() && distance > minDistance.Value)
                 {
-                    // If harpooning a player we ignore their health and consider them equal to the attacker
-                    float health_force_multiplier;
-                    if (__instance.m_character.IsPlayer())
-                    {
-                        health_force_multiplier = 0.5f;
-                    } else
-                    {
-                        health_force_multiplier = (__instance.m_character.GetHealthPercentage() - minHealthLimit.Value) / (1.0f - minHealthLimit.Value);
-                    }
-                    
-                    float force_on_harpoon = Mathf.Lerp(minForce.Value, maxForceOnHarpoon.Value, forceBaseline.Value * (1 - health_force_multiplier) * relative_mass_attacker * scalingFactorForceOnHarpoon.Value);
-                    float force_on_attacker = Mathf.Lerp(minForce.Value, maxForceOnAttacker.Value, forceBaseline.Value * (health_force_multiplier) * relative_mass_harpooned * scalingFactorForceOnAttacker.Value);
-
-                    Vector3 harpoon_force_vector = direction * force_on_harpoon;
-                    Vector3 attacker_force_vector = -direction * force_on_attacker;
-                    harpoon_force_vector.y = Mathf.Min(0, harpoon_force_vector.y);
-                    attacker_force_vector.y = Mathf.Min(0, attacker_force_vector.y);
-
-                    // If target is swimming then allow them to be pulled extra
-                    if (__instance.m_character.IsSwiming())
-                    {
-                        logger.LogDebug($"Applying {nameof(inWaterFactor)}");
-                        harpoon_force_vector *= inWaterFactor.Value;
-                    }
-
-                    if (__instance.m_attacker.GetStandingOnShip() != null)
-                    {
-                        // If attacker is on a ship allow them to be pulled more
-                        logger.LogDebug($"Applying {nameof(onShipFactor)}");
-                        attacker_force_vector *= onShipFactor.Value;
-
-                        // If attacker and target are on a ship zero out the force vectors
-                        // This resembles a patch IronWorks put in to handle buggy behavior
-                        if (__instance.m_character.GetStandingOnShip() == __instance.m_attacker.GetStandingOnShip())
-                        {
-                            logger.LogDebug($"Applying zero forces - both players on same ship.");
-                            harpoon_force_vector = Vector3.zero;
-                            attacker_force_vector = Vector3.zero;
-                        }
-                    }
-
-                    harpooned_component.AddForce(harpoon_force_vector, (ForceMode)forceMode.Value);
-                    attacker_component.AddForce(attacker_force_vector, (ForceMode)forceMode.Value);
-
-                    // Apply stamina drain
-                    __instance.m_drainStaminaTimer += dt;
-                    if (__instance.m_drainStaminaTimer > __instance.m_staminaDrainInterval)
-                    {
-                        float stamina_cost = pullStaminaCost.Value * (__instance.m_drainStaminaTimer / __instance.m_staminaDrainInterval);
-                        __instance.m_attacker.UseStamina(stamina_cost);
-                        __instance.m_drainStaminaTimer = 0f;
-                    }
-
-                    logger.LogDebug($"\n" +
-                        $"Force on harpoon:  {harpoon_force_vector}  \t  mag: {harpoon_force_vector.magnitude}  \t mass: {harpooned_component.mass} \t rel_mass: {relative_mass_harpooned}\n" +
-                        $"Force on attacker: {attacker_force_vector} \t mag: {attacker_force_vector.magnitude} \t mass: {attacker_component.mass}  \t rel_mass: {relative_mass_attacker} \n" +
-                        $"Health factor: {health_force_multiplier} \n");
+                    ApplyForces0(dt, attacker, harpooned);
+                    DrainStamina(dt, __instance);
                 }
 
                 // Break connection if too far away or out of stamina
                 if (distance > ImprovedHarpoon.maxDistance.Value)
                 {
                     __instance.m_broken = true;
-                    __instance.m_attacker.Message(MessageHud.MessageType.Center, "Line broke");
+                    attacker.Message(MessageHud.MessageType.Center, "Line broke");
                 }
-                if (!__instance.m_attacker.HaveStamina() || __instance.m_attacker.IsStaggering())
+                if (!attacker.HaveStamina() || attacker.IsStaggering())
                 {
                     __instance.m_broken = true;
-                    __instance.m_attacker.Message(MessageHud.MessageType.Center, __instance.m_character.m_name + " escaped");
+                    attacker.Message(MessageHud.MessageType.Center, harpooned.m_name + " escaped");
                 }
                 return false;
             }

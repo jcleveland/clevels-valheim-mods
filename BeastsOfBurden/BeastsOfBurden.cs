@@ -13,12 +13,11 @@ namespace BeastsOfBurden
     {
         const string pluginGUID = "org.bepinex.plugins.beasts_of_burden";
         const string pluginName = "BeastsOfBurden";
-        const string pluginVersion = "0.1.0";
+        const string pluginVersion = "1.0.0";
         public static ManualLogSource logger;
 
-        private readonly Harmony harmony = new Harmony(pluginGUID + "." + pluginName);
+        private readonly Harmony harmony = new Harmony(pluginGUID);
 
-        static private ConfigEntry<bool> enableBeastsOfBurden;
         static private ConfigEntry<bool> commandWolf;
         static private ConfigEntry<bool> commandBoar;
         static private ConfigEntry<bool> commandLox;
@@ -28,7 +27,7 @@ namespace BeastsOfBurden
         static private ConfigEntry<float> detachDistanceLox;
 
         static private ConfigEntry<Vector3> loxOffset;
-        static private ConfigEntry<Vector3> smallerOffset;
+        static private ConfigEntry<Vector3> mediumOffset;
 
         static private ConfigEntry<float> followDistanceLox;
         static private ConfigEntry<float> followDistanceMediumAnimal;
@@ -37,11 +36,6 @@ namespace BeastsOfBurden
         {
             logger = Logger;
             Logger.LogInfo($"Loading Beasts of Burden ");
-
-            enableBeastsOfBurden = Config.Bind(pluginName,
-                nameof(enableBeastsOfBurden),
-                true,
-                "Enable Beast of Burden Mod");
 
             commandWolf = Config.Bind(pluginName,
                 nameof(commandWolf),
@@ -56,35 +50,33 @@ namespace BeastsOfBurden
                  true,
                  "Makes Lox Commandable");
 
-            detachDistancePlayer = Config.Bind(pluginName,
+            detachDistancePlayer = Config.Bind(pluginName, 
                 nameof(detachDistancePlayer),
-                2f, new ConfigDescription("How far the player has to be from the cart.",
+                2f, 
+                new ConfigDescription("How far the player has to be from the cart.",
                     new AcceptableValueRange<float>(1f, 5f)));
 
-            detachDistancePlayer = Config.Bind(pluginName, nameof(detachDistancePlayer),
-                2f, new ConfigDescription("How far the player has to be from the cart.",
-                    new AcceptableValueRange<float>(1f, 5f)));
-
-            detachDistanceMediumAnimal = Config.Bind(pluginName, nameof(detachDistanceMediumAnimal),
-                3f, new ConfigDescription("How far the animal has to be from the cart.",
+            detachDistanceMediumAnimal = Config.Bind(pluginName, 
+                nameof(detachDistanceMediumAnimal),
+                3f, new ConfigDescription("How far a medium animal can be from the cart to be attached to it.",
                     new AcceptableValueRange<float>(1f, 10f)));
 
             detachDistanceLox = Config.Bind(pluginName, nameof(detachDistanceLox),
-                6f, new ConfigDescription("How far the Lox can be from the cart has to be from the cart.",
+                6f, new ConfigDescription("How far the Lox can be from the cart to be attached to it.",
                 new AcceptableValueRange<float>(1f, 10f)));
 
             loxOffset = Config.Bind(pluginName, nameof(loxOffset),
                 new Vector3(0f, 0.8f, -2f), "Offset for where the cart attachs to the lox");
 
-            smallerOffset = Config.Bind(pluginName, nameof(smallerOffset),
-                new Vector3(0f, 0.8f, 0f), "Offset for smaller attachments (player, wolf, boar).");
+            mediumOffset = Config.Bind(pluginName, nameof(mediumOffset),
+                new Vector3(0f, 0.8f, 0f), "Offset for medium sized attachments (player, wolf, boar).");
 
             followDistanceLox = Config.Bind(pluginName, nameof(followDistanceLox),
-                8f, new ConfigDescription("How close the lox should follow.",
+                8f, new ConfigDescription("How close the lox will follow behind the player.",
                 new AcceptableValueRange<float>(1f, 30f)));
 
             followDistanceMediumAnimal = Config.Bind(pluginName, nameof(followDistanceMediumAnimal),
-                3f, new ConfigDescription("How close wolves or boars should follow.",
+                3f, new ConfigDescription("How close medium animals (wolf and boar) will follow behind the player.",
                 new AcceptableValueRange<float>(1f, 30f)));
 
             harmony.PatchAll();
@@ -95,6 +87,9 @@ namespace BeastsOfBurden
             harmony.UnpatchSelf();
         }
 
+        /// <summary>
+        /// An enum describing what is getting attached to the cart
+        /// </summary>
         public enum Beasts
         {
             lox,
@@ -104,7 +99,11 @@ namespace BeastsOfBurden
             unknown
         }
 
-
+        /// <summary>
+        /// Parses a character into a Beasts
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
         public static Beasts ParseCharacterType(Character c)
         {
             if (c.IsPlayer())
@@ -131,7 +130,12 @@ namespace BeastsOfBurden
         }
 
 
-
+        /// <summary>
+        /// Different sized characters require different attachment offsets for the cart. 
+        /// This will return the appropriate offset.
+        /// </summary>
+        /// <param name="c">to be attached to the cart</param>
+        /// <returns>vector of where the cart should attach</returns>
         public static Vector3 GetCartOffsetVectorForCharacter(Character c)
         {
             switch (ParseCharacterType(c))
@@ -139,18 +143,22 @@ namespace BeastsOfBurden
                 case Beasts.lox:
                     return loxOffset.Value;
                 case Beasts.wolf:
-                    return smallerOffset.Value;
+                    return mediumOffset.Value;
                 case Beasts.boar:
-                    return smallerOffset.Value;
+                    return mediumOffset.Value;
                 case Beasts.player:
-                    return smallerOffset.Value;
+                    return mediumOffset.Value;
                 default:
                     logger.LogError($"Unexpected character type for {c.m_name}");
                     return Vector3.zero;
             }
         }
 
-
+        /// <summary>
+        /// Different character types should be different distances to the cart for it to attach.
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns>the appropriate attach/detach distance for the provided character</returns>
         public static float GetCartDetachDistance(Character c)
         {
             switch (ParseCharacterType(c))
@@ -168,10 +176,13 @@ namespace BeastsOfBurden
             }
         }
 
-
+        /// <summary>
+        /// Searches nearby animals and finds the closest one to the cart that could be attached.
+        /// </summary>
+        /// <param name="cart"></param>
+        /// <returns>Closest character to the cart that can attach to it, null if no character available</returns>
         static Character FindClosestTamedAnimal(Vagon cart)
         {
-            LogCartContents(cart);
             Transform attachPoint = cart.m_attachPoint;
             Character closest_animal = null;
             float closest_distance = float.MaxValue;
@@ -200,6 +211,11 @@ namespace BeastsOfBurden
             return closest_animal;
         }
 
+        /// <summary>
+        /// Logs the contents of a given cart to the debug logger. 
+        /// Used during debugging to easily differentiate between carts.
+        /// </summary>
+        /// <param name="cart"></param>
         static void LogCartContents(Vagon cart)
         {
             Container c = cart.m_container;
@@ -239,6 +255,9 @@ namespace BeastsOfBurden
         }
 
 
+        /// <summary>
+        /// Patch for Vagon.LateUpdate that handles a situation where the attached animal is killed.
+        /// </summary>
         [HarmonyPatch(typeof(Vagon), "LateUpdate")]
         class LateUpdate_Vagon_Patch
         {
@@ -251,7 +270,9 @@ namespace BeastsOfBurden
             }
         }
 
-
+        /// <summary>
+        /// Patch overriding InUse that will correctly return false if an animal is the one attached to a cart
+        /// </summary>
         [HarmonyPatch(typeof(Vagon), nameof(Vagon.InUse))]
         class InUse_Vagon_Patch
         {
@@ -269,18 +290,14 @@ namespace BeastsOfBurden
             }
         }
 
-
+        /// <summary>
+        /// Patch to FixedUpdate that will attempt to attach cart to animal if there is an appropriate one nearby.
+        /// </summary>
         [HarmonyPatch(typeof(Vagon), "FixedUpdate")]
         class Vagon_FixedUpdate_Patch
         {
             static bool Prefix(Vagon __instance)
             {
-                // If mod is not enabled skip this function altogether
-                if (!enableBeastsOfBurden.Value)
-                {
-                    return true;
-                }
-
                 if (!__instance.m_nview.IsValid())
                 {
                     logger.LogDebug("m_nview invalid");
@@ -334,7 +351,11 @@ namespace BeastsOfBurden
             }
         }
 
-
+        /// <summary>
+        /// Patch for follow logic that allows for a greater follow distance.
+        /// This is necessary because the lox tries to follow the player so closely that it constantly pushes the player
+        /// Future use could include randomizing follow distance so multiple cart pulling animals are less likely to collide.
+        /// </summary>
         [HarmonyPatch(typeof(BaseAI), nameof(BaseAI.Follow))]
         class Tamed_Follow_patch
         {
@@ -381,7 +402,9 @@ namespace BeastsOfBurden
             }
         }
 
-
+        /// <summary>
+        /// Patch that allows this mod to specify which tamed animals are commandable.
+        /// </summary>
         [HarmonyPatch(typeof(Tameable), nameof(Tameable.Interact))]
         class Command_Patch
         {
