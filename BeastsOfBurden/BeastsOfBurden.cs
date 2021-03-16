@@ -11,7 +11,7 @@ namespace BeastsOfBurden
     [BepInProcess("valheim.exe")]
     public class BeastsOfBurden : BaseUnityPlugin
     {
-        const string pluginGUID = "com.mod.clevel";
+        const string pluginGUID = "org.bepinex.plugins.beasts_of_burden";
         const string pluginName = "BeastsOfBurden";
         const string pluginVersion = "0.1.0";
         public static ManualLogSource logger;

@@ -11,7 +11,7 @@ namespace ImprovedHarpoon
     [BepInProcess("valheim.exe")]
     public class ImprovedHarpoon : BaseUnityPlugin
     {
-        const string pluginGUID = "org.mod.clevel";
+        const string pluginGUID = "org.bepinex.plugins.improved_harpoon";
         const string pluginName = "ImprovedHarpoon";
         const string pluginVersion = "0.1.0";
         public static ManualLogSource logger;

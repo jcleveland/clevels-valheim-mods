@@ -278,4 +278,7 @@
   <PropertyGroup>
     <PostBuildEvent>copy  C:\Users\jeff\source\repos\ValheimMod\ImprovedHarpoon\bin\Debug\ImprovedHarpoon.dll D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\scripts\ImprovedHarpoon.dll</PostBuildEvent>
   </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>if exist  D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\config\org.bepinex.plugins.improved_harpoon.cfg del D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\config\org.bepinex.plugins.improved_harpoon.cfg</PreBuildEvent>
+  </PropertyGroup>
 </Project>
