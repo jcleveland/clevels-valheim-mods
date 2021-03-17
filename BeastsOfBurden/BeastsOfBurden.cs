@@ -183,25 +183,43 @@ namespace BeastsOfBurden
         /// <returns>Closest character to the cart that can attach to it, null if no character available</returns>
         static Character FindClosestTamedAnimal(Vagon cart)
         {
+            if (!cart)
+            {
+                logger.LogError("Cart pointer is null");
+                return null;
+            }
+
             Transform attachPoint = cart.m_attachPoint;
             Character closest_animal = null;
             float closest_distance = float.MaxValue;
 
+            if (!cart.m_attachPoint)
+            {
+                logger.LogError("cart.m_attachPoint is null.");
+                return null;
+            }
+
             foreach (Character currentCharacter in Character.GetAllCharacters())
             {
-                if (currentCharacter != null && !currentCharacter.IsPlayer() && currentCharacter.IsTamed())
+                if(currentCharacter)
                 {
-                    Tameable tameable_component = currentCharacter.GetComponent<Tameable>();
-                    Vector3 cartOffset = GetCartOffsetVectorForCharacter(currentCharacter);
-                    Vector3 animalPosition = tameable_component.transform.position;
-
-                    float distance = Vector3.Distance(tameable_component.transform.position + cartOffset, attachPoint.position);
-                    float detachDistance = GetCartDetachDistance(currentCharacter);
-                    if (distance < detachDistance && distance < closest_distance)
+                    if (!currentCharacter.IsPlayer() && currentCharacter.IsTamed())
                     {
-                        closest_animal = currentCharacter;
-                        closest_distance = distance;
+                        Vector3 cartOffset = GetCartOffsetVectorForCharacter(currentCharacter);
+                        Vector3 animalPosition = currentCharacter.transform.position;
+
+                        float distance = Vector3.Distance(animalPosition + cartOffset, attachPoint.position);
+                        float detachDistance = GetCartDetachDistance(currentCharacter);
+                        if (distance < detachDistance && distance < closest_distance)
+                        {
+                            closest_animal = currentCharacter;
+                            closest_distance = distance;
+                        }
                     }
+                }
+                else
+                {
+                    logger.LogWarning("null character returned by Character.GetAllCharacter() in method FindClosestTamedAnimal");
                 }
             }
             if (closest_animal != null)
@@ -414,7 +432,6 @@ namespace BeastsOfBurden
             /// <param name="___m_commandable"></param>
             static void Prefix(ref bool ___m_commandable, ref Character ___m_character)
             {
-                logger.LogDebug($"Interacted with {___m_character.m_name}");
                 switch (ParseCharacterType(___m_character))
                 {
                     case Beasts.lox:
