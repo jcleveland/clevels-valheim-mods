@@ -13,7 +13,7 @@ namespace BeastsOfBurden
     {
         const string pluginGUID = "org.bepinex.plugins.beasts_of_burden";
         const string pluginName = "BeastsOfBurden";
-        const string pluginVersion = "1.0.2";
+        const string pluginVersion = "1.0.3";
         public static ManualLogSource logger;
 
         private readonly Harmony harmony = new Harmony(pluginGUID);
@@ -27,12 +27,8 @@ namespace BeastsOfBurden
         static private ConfigEntry<bool> attachToLox;
         static private ConfigEntry<bool> attachToOtherTamed;
 
+        static private ConfigEntry<float> detachDistanceFactor;
         static private ConfigEntry<float> detachDistancePlayer;
-        static private ConfigEntry<float> detachDistanceMediumAnimal;
-        static private ConfigEntry<float> detachDistanceLox;
-
-        static private ConfigEntry<Vector3> loxOffset;
-        static private ConfigEntry<Vector3> mediumOffset;
 
         static private ConfigEntry<float> followDistanceLox;
         static private ConfigEntry<float> followDistanceMediumAnimal;
@@ -72,9 +68,8 @@ namespace BeastsOfBurden
 
             attachToOtherTamed = Config.Bind(pluginName,
                  nameof(attachToOtherTamed),
-                 false,
+                 true,
                  "Experimental: Allow cart to attach to other types of tamed animals. ");
-
 
             detachDistancePlayer = Config.Bind(pluginName, 
                 nameof(detachDistancePlayer),
@@ -82,21 +77,12 @@ namespace BeastsOfBurden
                 new ConfigDescription("How far the player has to be from the cart.",
                     new AcceptableValueRange<float>(1f, 5f)));
 
-            detachDistanceMediumAnimal = Config.Bind(pluginName, 
-                nameof(detachDistanceMediumAnimal),
-                3f, new ConfigDescription("How far a medium animal can be from the cart to be attached to it.",
-                    new AcceptableValueRange<float>(1f, 10f)));
+            detachDistanceFactor = Config.Bind(pluginName,
+                nameof(detachDistanceFactor),
+                3.5f,
+                new ConfigDescription("How far something has to be from the cart to use it a multiple of their radius",
 
-            detachDistanceLox = Config.Bind(pluginName, nameof(detachDistanceLox),
-                6f, new ConfigDescription("How far the Lox can be from the cart to be attached to it.",
-                new AcceptableValueRange<float>(1f, 10f)));
-
-            loxOffset = Config.Bind(pluginName, nameof(loxOffset),
-                new Vector3(0f, 0.8f, -2f), "Offset for where the cart attachs to the lox");
-
-            mediumOffset = Config.Bind(pluginName, nameof(mediumOffset),
-                new Vector3(0f, 0.8f, 0f), "Offset for medium sized attachments (player, wolf, boar).");
-
+                    new AcceptableValueRange<float>(1f, 5f)));
             followDistanceLox = Config.Bind(pluginName, nameof(followDistanceLox),
                 8f, new ConfigDescription("How close the lox will follow behind the player.",
                 new AcceptableValueRange<float>(1f, 30f)));
@@ -122,36 +108,40 @@ namespace BeastsOfBurden
             wolf,
             boar,
             player,
-            unknown
+            other
         }
+
 
         /// <summary>
         /// Parses a character into a Beasts
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        public static Beasts ParseCharacterType(Character c)
+            public static Beasts ParseCharacterType(Character c)
         {
             if (c.IsPlayer())
             {
                 return Beasts.player;
             }
-            else if (c.m_name.ToLower().Contains("lox"))
+
+            if (c.m_nview.IsValid())
             {
-                return Beasts.lox;
-            }
-            else if (c.m_name.ToLower().Contains("wolf"))
-            {
-                return Beasts.wolf;
-            }
-            else if (c.m_name.ToLower().Contains("boar"))
-            {
-                return Beasts.boar;
+                switch (ZNetScene.instance.GetPrefab(c.m_nview.GetZDO().GetPrefab()).name)
+                {
+                    case "Lox":
+                        return Beasts.lox;
+                    case "Wolf":
+                        return Beasts.wolf;
+                    case "Boar":
+                        return Beasts.boar;
+                    default:
+                        return Beasts.other;
+                }
             }
             else
             {
-                logger.LogError($"Unexpected character type {c}");
-                return Beasts.unknown;
+                logger.LogDebug($"Character has invalid m_nview.");
+                return Beasts.other;
             }
         }
 
@@ -164,20 +154,11 @@ namespace BeastsOfBurden
         /// <returns>vector of where the cart should attach</returns>
         public static Vector3 GetCartOffsetVectorForCharacter(Character c)
         {
-            switch (ParseCharacterType(c))
+            if (c)
             {
-                case Beasts.lox:
-                    return loxOffset.Value;
-                case Beasts.wolf:
-                    return mediumOffset.Value;
-                case Beasts.boar:
-                    return mediumOffset.Value;
-                case Beasts.player:
-                    return mediumOffset.Value;
-                default:
-                    logger.LogError($"Unexpected character type for {c.m_name} returning medium animal offset vector");
-                    return mediumOffset.Value;
+                return new Vector3(0f, 0.8f, 0f - c.GetRadius());
             }
+            return new Vector3(0f, 0.8f, 0f);
         }
 
         /// <summary>
@@ -209,19 +190,20 @@ namespace BeastsOfBurden
         /// <returns>the appropriate attach/detach distance for the provided character</returns>
         public static float GetCartDetachDistance(Character c)
         {
-            switch (ParseCharacterType(c))
+            if (c)
             {
-                case Beasts.lox:
-                    return detachDistanceLox.Value;
-                case Beasts.wolf:
-                case Beasts.boar:
-                    return detachDistanceMediumAnimal.Value;
-                case Beasts.player:
+                if (c.IsPlayer())
+                {
                     return detachDistancePlayer.Value;
-                default:
-                    logger.LogError($"Unexpected character type for {c.m_name}");
-                    return 0f;
+                }
+                else
+                {
+                    return c.GetRadius() * detachDistanceFactor.Value;
+                }
+            
             }
+            logger.LogError("Character pass was null");
+            return 0f;
         }
 
         /// <summary>
@@ -468,7 +450,7 @@ namespace BeastsOfBurden
                         followDistance = followDistanceMediumAnimal.Value;
                         break;
                     default:
-                        logger.LogError($"Unexpected character type for {__instance.m_character.m_name}");
+                        // Kick it back to the original method for unknown creature types
                         return true;
                 }
 
@@ -509,7 +491,6 @@ namespace BeastsOfBurden
                         ___m_commandable = commandBoar.Value;
                         return;
                     default:
-                        logger.LogError($"Unexpected character type for {___m_character.m_name}");
                         return;
                 }
             }
