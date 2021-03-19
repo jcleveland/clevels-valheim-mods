@@ -12,10 +12,14 @@ In the configuration you can adjust things such as:
 * Which animal types you can command to follow you.
 * How closely an animal will attempt to follow.
 * How close the animal or player have to be to the cart to attach to it.
+* Which animals you can attach to a cart
 
 ## Installation
-Like many Valheim mods Beasts of Burden relies on BepinEx and HarmonyX mod. For instructions on installing such mods see: https://valheim.thunderstore.io/package/denikson/BepInExPack_Valheim/ or https://www.nexusmods.com/valheim/mods/15
+Like many Valheim mods Beasts of Burden relies on BepinEx and Harmony mod. For instructions on installing such mods see: https://valheim.thunderstore.io/package/denikson/BepInExPack_Valheim/ or https://www.nexusmods.com/valheim/mods/15
 
 ## Known Issues
 * If a player leaves the area (e.g., teleporting or quitting) after attaching a cart to an animal the cart will detach even if other players are still in the area.
 * Cart connection can be a bit jostling if detach distance setting is too high.
+
+## Known mod compatibility issues
+* Doesn't curently work with Linked Wagons 
