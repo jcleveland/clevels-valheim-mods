@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.2] - 2021-03-19
+## [1.0.3] - 2021-03-19
 ### Changed 
 * Cart detach range and attachments offset are now based on the radius of the animal it is being attached to, this was to help make the mod more compatible with mods like All Tameable. Detach distance for Wolf, Boar, and Lox was replaced with Detach Distance Factor which is used for all creatures.
 * attachToOtherTamed setting now defaults to True. 
