@@ -349,6 +349,10 @@ namespace BeastsOfBurden
                 {
                     __result = (bool)__instance.m_attachJoin.connectedBody.gameObject.GetComponent<Player>();
                 }
+                else
+                {
+                    __result = false;
+                }
                 return false;
             }
         }
