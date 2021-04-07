@@ -8,12 +8,11 @@ using UnityEngine;
 namespace BeastsOfBurden
 {
     [BepInPlugin(pluginGUID, pluginName, pluginVersion)]
-    [BepInProcess("valheim.exe")]
     public class BeastsOfBurden : BaseUnityPlugin
     {
         const string pluginGUID = "org.bepinex.plugins.beasts_of_burden";
         const string pluginName = "BeastsOfBurden";
-        const string pluginVersion = "1.0.3";
+        const string pluginVersion = "1.0.4";
         public static ManualLogSource logger;
 
         private readonly Harmony harmony = new Harmony(pluginGUID);
