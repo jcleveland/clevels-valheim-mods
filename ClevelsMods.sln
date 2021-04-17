@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31105.61
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "assembly_valheim", "..\..\..\Documents\decompiled_valheim\assembly_valheim.csproj", "{D6194E4D-DC21-4D28-885D-761211E08637}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImprovedHarpoon", "ImprovedHarpoon\ImprovedHarpoon.csproj", "{83DD2F01-2BE4-4411-A066-6530A375F016}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeastsOfBurden", "BeastsOfBurden\BeastsOfBurden.csproj", "{FCB9AF9D-F8CD-406F-9405-E10A8D59B395}"
@@ -15,8 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{D6194E4D-DC21-4D28-885D-761211E08637}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D6194E4D-DC21-4D28-885D-761211E08637}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83DD2F01-2BE4-4411-A066-6530A375F016}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{83DD2F01-2BE4-4411-A066-6530A375F016}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83DD2F01-2BE4-4411-A066-6530A375F016}.Release|Any CPU.ActiveCfg = Release|Any CPU
