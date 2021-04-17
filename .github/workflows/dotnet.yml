@@ -7,21 +7,19 @@ on:
     branches: [ master ]
 
 jobs:
-  job1:
-    runs-on: ubuntu-latest
-    env:
-      working-directory: ./BeastsOfBurden
+  build:
+    runs-on: [windows-latest]
     steps:
     - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1.7.2
-      with:
-        dotnet-version: 5.0.x
-    - name: Restore dependencies
-      working-directory: ${{env.working-directory}}
-      run: dotnet restore
-    - name: Build
-      working-directory: ${{env.working-directory}}
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+    
+    - name: setup-msbuild
+      uses: microsoft/setup-msbuild@v1
+    
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v1.0.5
+    
+    - name: Restore NuGet Packages
+      run: nuget restore ClevelsMods.sln
+      
+    - name: Build the Solution
+      run: msbuild ClevelsMods.sln
