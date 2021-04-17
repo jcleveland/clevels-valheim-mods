@@ -1,0 +1,9 @@
+{
+    "name": "BeastsOfBurden",
+    "version_number": null,
+    "website_url": "https://github.com/jcleveland/clevels-valheim-mods/tree/master/BeastsOfBurden",
+    "description": "Allows you to attach carts to tamed boars, wolves, and loxen",
+    "dependencies": [
+    	"denikson-BepInExPack_Valheim-5.4.800"
+    ]
+}
