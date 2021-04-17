@@ -258,9 +258,12 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy  C:\Users\jeff\source\repos\ValheimMod\ImprovedHarpoon\bin\Debug\ImprovedHarpoon.dll D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\scripts\ImprovedHarpoon.dll</PostBuildEvent>
+    <PostBuildEvent>if $(ConfigurationName) == Debug del "$(TargetPath).mdb"
+if $(ConfigurationName) == Debug $(SolutionDir)pdb2mdb.exe "$(TargetPath)"
+if $(ConfigurationName) == Debug copy  $(TargetDir)$(ProjectName)* F:\Valheim-dev\BepInEx\plugins\</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>if exist  D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\config\org.bepinex.plugins.improved_harpoon.cfg del D:\SteamLibrary\SteamApps\common\Valheim\BepInEx\config\org.bepinex.plugins.improved_harpoon.cfg</PreBuildEvent>
+    <PreBuildEvent>
+    </PreBuildEvent>
   </PropertyGroup>
 </Project>
