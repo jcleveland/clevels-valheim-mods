@@ -8,7 +8,6 @@ using UnityEngine;
 namespace BeastsOfBurden
 {
     [BepInPlugin(pluginGUID, pluginName, pluginVersion)]
-    [BepInProcess("valheim.exe")]
     public class BeastsOfBurden : BaseUnityPlugin
     {
         const string pluginGUID = "org.bepinex.plugins.beasts_of_burden";
