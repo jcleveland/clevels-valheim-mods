@@ -1,3 +1,10 @@
+## Script to automatically package up a simple mod to be uploaded to thunderstore and nexus
+## Assumes some details about project structure
+##  * project_dir has a README.md and CHANGELOG.md file (these are concatenated together for thunderstore)
+##  * projoect_dir\resources has icon.png and manifest.json
+## Assumes mod version is set in the AssemblyFileVersion e.g. AssemblyInfo.cs has:
+##    [assembly: AssemblyFileVersion(BeastsOfBurden.BeastsOfBurden.pluginVersion)]
+
 # Mod DLL
 $mod_name = "BeastsOfBurden"
 $project_dir = ".\"
@@ -16,7 +23,6 @@ New-Item -ItemType Directory -Force -Path $artifact_path
 New-Item -ItemType Directory -Force -Path $nexus_path
 New-Item -ItemType Directory -Force -Path $tsio_path
 New-Item -ItemType Directory -Force -Path $raw_path
-
 
 ###################################
 ####### Raw DLL
@@ -43,6 +49,9 @@ $manifest | ConvertTo-Json -depth 32| set-content $tsio_tmp_directory"manifest.j
 
 # Copy README and icon into tmp directory
 Copy-Item $project_dir"README.md" $tsio_tmp_directory
+Add-Content $tsio_tmp_directory"README.md" -value "`r`n"
+Get-Content $project_dir"CHANGELOG.md" | Add-Content $tsio_tmp_directory"README.md"
+
 Copy-Item $project_dir"resources\icon.png" $tsio_tmp_directory
 
 # Copy mod dll into tmp file\plugins directory
