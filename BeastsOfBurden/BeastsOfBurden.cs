@@ -32,6 +32,8 @@ namespace BeastsOfBurden
         static private ConfigEntry<float> followDistanceLox;
         static private ConfigEntry<float> followDistanceMediumAnimal;
 
+        static private ConfigEntry<bool> preventTamedFearOfFire;
+
         void Awake()
         {
             logger = Logger;
@@ -89,6 +91,9 @@ namespace BeastsOfBurden
             followDistanceMediumAnimal = Config.Bind(pluginName, nameof(followDistanceMediumAnimal),
                 3f, new ConfigDescription("How close medium animals (wolf and boar) will follow behind the player.",
                 new AcceptableValueRange<float>(1f, 30f)));
+
+            preventTamedFearOfFire = Config.Bind<bool>(pluginName, nameof(preventTamedFearOfFire),
+                false, new ConfigDescription("Prevent tamed animals from being afraid of fire."));
 
             harmony.PatchAll();
         }
@@ -420,11 +425,31 @@ namespace BeastsOfBurden
         }
 
         /// <summary>
-        /// Patch for follow logic that allows for a greater follow distance.
-        /// This is necessary because the lox tries to follow the player so closely that it constantly pushes the player
-        /// Future use could include randomizing follow distance so multiple cart pulling animals are less likely to collide.
+        /// Changes to BaseAI UpdateAI patch.
+        /// 
+        /// Some of these could potentially be moved into a BaseAI.Awake but for
+        /// now I'm putting them here so that if you change the value while playing
+        /// it'll be automatically updated.
         /// </summary>
-        [HarmonyPatch(typeof(BaseAI), nameof(BaseAI.Follow))]
+        [HarmonyPatch(typeof(BaseAI), nameof(BaseAI.UpdateAI))]
+        class BaseAI_UpdateAI_patch
+        {
+            static bool Prefix(float dt, ref BaseAI __instance)
+            {
+                if (__instance.m_character.IsTamed() && preventTamedFearOfFire.Value)
+                {
+                    __instance.m_afraidOfFire = false;
+                }
+                return true;
+            }
+        }
+
+            /// <summary>
+            /// Patch for follow logic that allows for a greater follow distance.
+            /// This is necessary because the lox tries to follow the player so closely that it constantly pushes the player
+            /// Future use could include randomizing follow distance so multiple cart pulling animals are less likely to collide.
+            /// </summary>
+            [HarmonyPatch(typeof(BaseAI), nameof(BaseAI.Follow))]
         class Tamed_Follow_patch
         {
             static bool Prefix(GameObject go, float dt, ref BaseAI __instance)

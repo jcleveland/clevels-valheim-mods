@@ -12,7 +12,8 @@ In the configuration you can adjust things such as:
 * Which animal types you can command to follow you.
 * How closely an animal will attempt to follow.
 * How close the animal or player have to be to the cart to attach to it.
-* Which animals you can attach to a cart
+* Which animals you can attach to a cart.
+* If tamed animals should ignore their fear of fire.
 
 ## Installation
 Like many Valheim mods Beasts of Burden relies on BepinEx and Harmony mod. For instructions on installing such mods see: https://valheim.thunderstore.io/package/denikson/BepInExPack_Valheim/ or https://www.nexusmods.com/valheim/mods/15

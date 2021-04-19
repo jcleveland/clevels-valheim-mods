@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2021-04-19
+### Changed 
+* Mod no longer checks for process valheim.exe - this means it will now load on other clients such as Linux client or dedicated server without issue. Running this mod server side is still not required but likely will be in a future version.
+
+### Added
+* Prevent Tamed Fear of Fire config setting. This prevents tamed creatures from being afraid of fire. If you enable this it will immediately apply to all tamed creatures in your area, disabling it however will not take effect until the creatures are reloaded.
+
 ## [1.0.3] - 2021-03-19
 ### Changed 
 * Cart detach range and attachments offset are now based on the radius of the animal it is being attached to, this was to help make the mod more compatible with mods like All Tameable. Detach distance for Wolf, Boar, and Lox was replaced with Detach Distance Factor which is used for all creatures.
